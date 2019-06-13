@@ -12,7 +12,7 @@
 使用指南
 安装 For CentOS 7 x64
 <pre>
-yum install wget -y && wget https://raw.githubusercontent.com/SuicidalCat/Airport-toolkit/master/ssr_node_c7.sh && chmod +x ssr_node_c7.sh && ./ssr_node_c7.sh
+wget --no-check-certificate -qO ssr_node_c7.sh 'https://raw.github.com/cntaoge/Airport-toolkit/master/ssr_node_c7.sh'  && chmod +x ssr_node_c7.sh && ./ssr_node_c7.sh
 </pre>
 
 卸载
