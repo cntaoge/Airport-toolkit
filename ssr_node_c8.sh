@@ -86,24 +86,24 @@ if [ -d "/soft/shadowsocks" ]; then
 	done
 fi
 echo "Updatin exsit package..."
-yum clean all && rm -rf /var/cache/yum && yum update -y
+dnf clean all && dnf update -y
 echo "Configurating EPEL release..."
-rpm -ivh https://dl.fedoraproject.org/pub/epel/7/x86_64/Packages/e/epel-release-7-11.noarch.rpm && yum makecache
+rpm -ivh https://dl.fedoraproject.org/pub/epel/8/Everything/x86_64/Packages/e/epel-release-8-5.el8.noarch.rpm && dnf makecache
 echo "Install necessary package..."
-yum install python-pip git net-tools htop ntp -y
+dnf install python3 python3-pip git htop chrony -y
 echo "Disabling firewalld..."
 systemctl stop firewalld && systemctl disable firewalld
 echo "Setting system timezone..."
-timedatectl set-timezone Asia/Taipei && systemctl stop ntpd.service && ntpdate us.pool.ntp.org
+timedatectl set-timezone Asia/Taipei && systemctl enable chronyd && systemctl start chronyd
 echo "Installing libsodium..."
-yum install libsodium -y
+dnf install libsodium -y
 mkdir /soft
 echo "Installing Shadowsocksr server from GitHub..."	
-cd /tmp && git clone -b manyuser https://github.com/NimaQu/shadowsocks.git	
+cd /tmp && git clone -b manyuser https://github.com/Anankke/shadowsocks-mod.git
 mv -f shadowsocks /soft
 cd /soft/shadowsocks
-pip install --upgrade pip setuptools
-pip install -r requirements.txt
+pip3 install --upgrade pip setuptools
+pip3 install -r requirements.txt
 echo "Generating config file..."
 cp apiconfig.py userapiconfig.py
 cp config.json user-config.json
@@ -139,7 +139,7 @@ do_mu(){
 		read mu_regex
 		echo "Writting MU config..."
 	fi
-	sed -i -e "s/MU_SUFFIX = 'zhaoj.in'/MU_SUFFIX = '${mu_suffix}'/g" -e "s/MU_REGEX = '%5m%id.%suffix'/MU_REGEX = '${mu_regex}'/g" userapiconfig.py
+	sed -i -e 's/MU_SUFFIX = "zhaoj.in"/MU_SUFFIX = "${mu_suffix}"/g' -e 's/MU_REGEX = "%5m%id.%suffix"/MU_REGEX = "${mu_regex}"/g' userapiconfig.py
 }
 do_modwebapi(){
 	if [[ ${is_auto} != "y" ]]; then
@@ -154,11 +154,11 @@ do_modwebapi(){
 		do_mu
 	fi
 	echo "Writting connection config..."
-	sed -i -e "s/NODE_ID = 0/NODE_ID = ${node_id}/g" -e "s%WEBAPI_URL = 'https://zhaoj.in'%WEBAPI_URL = '${webapi_url}'%g" -e "s/WEBAPI_TOKEN = 'glzjin'/WEBAPI_TOKEN = '${webapi_token}'/g" userapiconfig.py
+	sed -i -e "s/NODE_ID = 0/NODE_ID = ${node_id}/g" -e 's%WEBAPI_URL = "https://zhaoj.in"%WEBAPI_URL = "${webapi_url}"%g' -e 's/WEBAPI_TOKEN = "glzjin"/WEBAPI_TOKEN = "${webapi_token}"/g' userapiconfig.py
 }
 do_glzjinmod(){
 	if [[ ${is_auto} != "y" ]]; then
-		sed -i -e "s/'modwebapi'/'glzjinmod'/g" userapiconfig.py
+		sed -i -e 's/"modwebapi"/"glzjinmod"/g' userapiconfig.py
 		echo -n "Please enter DB server's IP address:"
 		read db_ip
 		echo -n "DB name:"
@@ -174,7 +174,7 @@ do_glzjinmod(){
 		do_mu
 	fi
 	echo "Writting connection config..."
-	sed -i -e "s/NODE_ID = 0/NODE_ID = ${node_id}/g" -e "s/MYSQL_HOST = '127.0.0.1'/MYSQL_HOST = '${db_ip}'/g" -e "s/MYSQL_USER = 'ss'/MYSQL_USER = '${db_user}'/g" -e "s/MYSQL_PASS = 'ss'/MYSQL_PASS = '${db_password}'/g" -e "s/MYSQL_DB = 'shadowsocks'/MYSQL_DB = '${db_name}'/g" userapiconfig.py
+	sed -i -e "s/NODE_ID = 0/NODE_ID = ${node_id}/g" -e 's/MYSQL_HOST = "127.0.0.1"/MYSQL_HOST = "${db_ip}"/g' -e 's/MYSQL_USER = "ss"/MYSQL_USER = "${db_user}"/g' -e 's/MYSQL_PASS = "ss"/MYSQL_PASS = "${db_password}"/g' -e 's/MYSQL_DB = "shadowsocks"/MYSQL_DB = "${db_name}"/g' userapiconfig.py
 }
 if [[ ${is_auto} != "y" ]]; then
 	#Do the configuration
@@ -186,11 +186,6 @@ if [[ ${is_auto} != "y" ]]; then
 fi
 do_bbr(){
 	echo "Running system optimization and enable BBR..."
-	rpm --import https://www.elrepo.org/RPM-GPG-KEY-elrepo.org
-	rpm -Uvh http://www.elrepo.org/elrepo-release-7.0-3.el7.elrepo.noarch.rpm
-	yum remove kernel-headers -y
-	yum --enablerepo=elrepo-kernel install kernel-ml kernel-ml-headers -y
-	grub2-set-default 0
 	echo "tcp_bbr" >> /etc/modules-load.d/modules.conf
 	cat >> /etc/security/limits.conf << EOF
 	* soft nofile 51200
@@ -221,7 +216,7 @@ EOF
 }
 do_service(){
 	echo "Writting system config..."
-	wget -O ssr_node.service https://raw.githubusercontent.com/SuicidalCat/Airport-toolkit/master/ssr_node.service.el7
+	wget -O ssr_node.service https://raw.githubusercontent.com/SuicidalCat/Airport-toolkit/master/ssr_node.service.el8
 	chmod 754 ssr_node.service && mv ssr_node.service /usr/lib/systemd/system
 	echo "Starting SSR Node Service..."
 	systemctl enable ssr_node && systemctl start ssr_node
@@ -233,7 +228,7 @@ do_salt_minion(){
 	sed -i -e "s/#master: salt/master: ${salt_master_ip}/g" /etc/salt/minion
 }
 while :; do echo
-	echo -n "Do you want to enable BBR feature(from mainline kernel) and optimizate the system?(Y/N)"
+	echo -n "Do you want to enable BBR feature(using system kernel) and optimizate the system?(Y/N)"
 	read is_bbr
 	if [[ ${is_bbr} != "y" && ${is_bbr} != "Y" && ${is_bbr} != "N" && ${is_bbr} != "n" ]]; then
 		echo -n "Bad answer! Please only input number Y or N"
